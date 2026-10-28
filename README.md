@@ -1,13 +1,16 @@
 # Arya College ClubSphere
-**Live Demo:** [Arya College ClubSphere](https://event-management-uylc.onrender.com/)
 
-**One platform for clubs, events, and campus activities.**
+The hosted demo can take a minute to open on the first visit while the server wakes up.
 
-Arya College ClubSphere is a web-based Club and Event Management System developed for Arya College of Engineering & IT, Jaipur. The project aims to simplify and centralize the management of college clubs, student memberships, events, registrations, and club-related activities.
+**Live demo:** [event-management-uylc.onrender.com](https://event-management-uylc.onrender.com/)
 
-The system provides different functionalities for administrators, club heads, club members, and students. It helps reduce manual work, improve communication, and make college club activities easier to manage.
+**Demo logins** (admin, club head, club member, student): see [`docs/demo-accounts.md`](docs/demo-accounts.md).
 
-The project is developed using Java, JSP, Servlets, JDBC, MySQL, and Apache Tomcat.
+**Demo video:** [ClubSphere walkthrough on Google Drive](https://drive.google.com/file/d/1o5umJYwDw9k0V-BGlIcvP0j_xMHfoaXU/view) · notes in [`docs/demo-video.md`](docs/demo-video.md).
+
+**One platform for clubs, events, and campus activities.** Arya College ClubSphere is a web-based club and event management system for Arya College of Engineering & IT, Jaipur. It centralizes clubs, memberships, events, QR registration, tasks, and notifications for administrators, club heads, club members, and students.
+
+Built with **Java 17, JSP, Servlets, JDBC, MySQL 8, Maven, and Apache Tomcat 10.1**.
 
 ---
 
@@ -23,9 +26,11 @@ The project is developed using Java, JSP, Servlets, JDBC, MySQL, and Apache Tomc
 - [Configuration](#configuration)
 - [Database Setup](#database-setup)
 - [Running the Project](#running-the-project)
+- [Running Tests](#running-tests)
+- [Deployment with Docker](#deployment-with-docker)
+- [Documentation](#documentation)
 - [GitHub Workflow](#github-workflow)
 - [Security](#security)
-- [Future Enhancements](#future-enhancements)
 - [Team](#team)
 - [Contributing](#contributing)
 
@@ -35,34 +40,29 @@ The project is developed using Java, JSP, Servlets, JDBC, MySQL, and Apache Tomc
 
 | Module | Description |
 |---|---|
-| Authentication & User Management | Provides user registration, login, authentication, and role-based access to the system. |
-| Club Management | Allows authorized users to manage college clubs and maintain club-related information and memberships. |
-| Event Management | Supports the management of college events, event information, and student registrations. |
-| QR Code Registration | Supports QR-based event registration and helps organizers verify registrations during event check-in. |
-| Role-Based Dashboards | Provides dashboard functionality according to the user's role and permitted activities. |
-| Tasks & Notifications | Supports task-related activities and notifications to help users stay informed about club work and events. |
-| Database Management | Stores and manages information related to users, clubs, events, registrations, and other application data. |
+| Authentication & User Management | Login, logout, BCrypt passwords, session handling, and admin user directory. |
+| Club Management | Directory of 26 college clubs, admin club CRUD, and club-head membership. |
+| Event Management | Club events with schedule, venue, capacity, and individual or group registration. |
+| QR Code Registration | Per-event QR PNG that opens the registration URL for check-in and signup. |
+| Role-Based Dashboards | Separate homes for Admin, Club Head, Club Member, and Student. |
+| Tasks & Notifications | Club tasks, announcements, in-app notifications, and simple reports. |
 
 ---
 
 ## User Roles
 
-Arya College ClubSphere is designed to support different categories of users.
-
 | Role | Responsibilities |
 |---|---|
-| Admin | Manages the overall system and performs authorized administrative activities. |
-| Club Head | Manages assigned club activities, coordinates events, and handles relevant event registrations. |
-| Club Member | Participates in club activities and accesses permitted club-related features. |
-| Student | Explores available clubs and events and participates in eligible college activities. |
+| Admin | Users, clubs, system-wide events/registrations, reports. |
+| Club Head | Members, events, QR codes, tasks, and announcements for one assigned club. |
+| Club Member | Assigned tasks, club events, and announcements. |
+| Student | Explore clubs and events, register, manage personal registrations and profile. |
 
-Access to application features depends on the user's assigned role and permissions.
+Access is enforced in `AuthenticationFilter`, not only in the UI.
 
 ---
 
 ## Team Module Allocation
-
-The project is divided into four major modules to support collaborative development.
 
 | Module | Module Name | Assigned Member |
 |---|---|---|
@@ -71,489 +71,281 @@ The project is divided into four major modules to support collaborative developm
 | Module 3 | Event Management & QR Code Registration | Akansha Sharma |
 | Module 4 | Dashboards, Tasks & Notifications | Aditi Maheshwari |
 
-Each member is responsible for developing and maintaining the assigned module while coordinating with the other team members to integrate the complete application.
-
 ---
 
 ## Tech Stack
 
 | Layer | Technologies |
 |---|---|
-| Frontend | HTML, CSS, JavaScript, JSP |
-| Backend | Java, Java Servlets |
+| Frontend | HTML, CSS, JavaScript, JSP, Bootstrap 5 |
+| Backend | Java 17, Jakarta Servlets, HikariCP |
 | Database | MySQL 8 |
-| Database Connectivity | JDBC |
-| Build Tool | Apache Maven |
-| Application Server | Apache Tomcat 10.1 |
-| Development Environment | Visual Studio Code |
-| Version Control | Git and GitHub |
-| Java Development Kit | JDK 17 |
-
-### Technology Overview
-
-- **HTML:** Defines the structure of the web pages.
-- **CSS:** Provides styling and layout for the application.
-- **JavaScript:** Supports client-side interactions and dynamic functionality.
-- **JSP:** Generates dynamic web pages.
-- **Java Servlets:** Handle incoming requests and application logic.
-- **JDBC:** Connects the Java application with the MySQL database.
-- **MySQL:** Stores application data.
-- **Apache Maven:** Manages dependencies and builds the project.
-- **Apache Tomcat:** Runs the web application.
-- **Git and GitHub:** Support version control and collaboration among team members.
+| Database connectivity | JDBC (`PreparedStatement`) |
+| Build | Apache Maven |
+| Server | Apache Tomcat 10.1 |
+| QR | ZXing |
+| Passwords | BCrypt (`jbcrypt`) |
+| Deployment | Dockerfile + Docker Compose |
 
 ---
 
 ## How It Works
 
-Arya College ClubSphere follows a web-based application architecture.
-
 ```text
-                User
+        Browser (JSP pages)
                  |
                  v
-        Web Browser Interface
-           HTML / CSS / JSP
+        AuthenticationFilter
                  |
                  v
            Java Servlets
                  |
                  v
-        Application Processing
+             Services
                  |
                  v
-              JDBC
+           DAO + JDBC
                  |
                  v
-             MySQL DB
-                 |
-                 v
-        Application Response
-                 |
-                 v
-        Updated Web Interface
+              MySQL
 ```
 
-### Application Workflow
+1. Open the site and browse clubs/events, or sign in.
+2. The filter checks the session and the role for `/admin`, `/club-head`, `/club-member`, and `/student`.
+3. Servlets call services; DAOs run parameterized SQL.
+4. Club heads publish events; `/qr/{token}` returns a PNG whose payload is the registration URL.
 
-1. The user opens the ClubSphere web application.
-2. The user registers or logs in using the available authentication functionality.
-3. The system identifies the user's role and provides access to permitted features.
-4. Users interact with the available club, event, dashboard, and other relevant modules.
-5. Java Servlets process application requests.
-6. JDBC communicates with the MySQL database when data needs to be retrieved or updated.
-7. The application returns the appropriate response to the user.
-
-### QR Code Event Workflow
-
-The QR Code Registration feature supports the event registration process.
-
-1. An authorized organizer manages an event through the Event Management module.
-2. The event registration process makes a QR code available where implemented.
-3. Students use the available registration process to participate in the event.
-4. The organizer can use the QR-based check-in functionality to help verify event registrations.
-
-The exact QR code generation and verification flow depends on the implemented event registration functionality.
+More detail: [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
 ## Project Structure
 
-The project uses a Maven-based Java web application structure.
-
 ```text
-Event_Management/
-│
+Arya_Clubsphere/
 ├── pom.xml
-│
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── ...
-│       │
-│       ├── resources/
-│       │   └── application.properties
-│       │
-│       └── webapp/
-│           ├── WEB-INF/
-│           │   └── web.xml
-│           │
-│           ├── *.jsp
-│           ├── css/
-│           ├── js/
-│           └── images/
-│
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
 ├── database/
-│   └── SQL scripts, if maintained separately
-│
-├── docs/
-│   └── Project documentation and reports
-│
-├── .gitignore
-├── pom.xml
-└── README.md
+│   ├── schema.sql          creates clubsphere_db and tables
+│   └── seed.sql            demo users, 26 clubs, sample events
+├── docs/                   SRS, UML, reports, module notes
+├── src/main/java/com/clubsphere/
+│   ├── controller/         Servlets
+│   ├── filter/             AuthenticationFilter
+│   ├── service/
+│   ├── dao/
+│   ├── model/
+│   └── util/               DBUtil, PasswordUtil, QRCodeUtil
+├── src/main/resources/application.properties
+├── src/main/webapp/        JSP, css, js
+└── src/test/java/          JUnit tests (no database required)
 ```
-
-**Note:** The tree above illustrates the general structure of a Maven-based Java web application. The exact folders and files should correspond to the current project repository. Optional folders such as `database/` and `docs/` should be included only if they exist in the project.
-
-### Main Components
-
-| Component | Purpose |
-|---|---|
-| `pom.xml` | Defines Maven dependencies and build configuration. |
-| `src/main/java/` | Contains Java source code, including application logic and Servlets. |
-| `src/main/resources/` | Contains application resources and configuration files. |
-| `application.properties` | Contains application configuration, where used. |
-| `src/main/webapp/` | Contains web resources and JSP pages. |
-| `WEB-INF/web.xml` | Contains web application configuration, where used. |
-| `README.md` | Provides project information and setup instructions. |
-| `.gitignore` | Specifies files and folders that Git should ignore. |
 
 ---
 
 ## Getting Started (Local Setup)
 
-Follow the instructions below to set up the project on your local computer.
-
 ### Prerequisites
 
-Install the following software:
-
-- **JDK 17**
-- **Apache Maven 3.9 or later**
-- **Apache Tomcat 10.1**
-- **MySQL Server 8.0 or later**
-- **Visual Studio Code** or another compatible Java IDE
-- **Git**
-
-Ensure that Java, Maven, and Git are correctly configured on your system.
-
-Verify the installations using:
+- JDK 17
+- Apache Maven 3.9+
+- Apache Tomcat 10.1 (if you deploy the WAR yourself)
+- MySQL Server 8.0+
+- Git
+- Docker Desktop (optional, for Compose)
 
 ```bash
 java -version
-```
-
-```bash
 mvn -version
-```
-
-```bash
 git --version
 ```
 
----
-
-### 1. Clone the Repository
-
-Open a terminal and run:
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Avantikamishra862/Event_Management.git
+git clone https://github.com/Avantikamishra862/Arya_Clubsphere.git
+cd Arya_Clubsphere
 ```
 
-Navigate to the project directory:
+### 2. Create the database
 
 ```bash
-cd Event_Management
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed.sql
 ```
 
-Open the project in Visual Studio Code:
+This creates `clubsphere_db`, tables, demo users, and 26 clubs.
+
+### 3. Configure credentials
+
+Copy the env template and export variables (or set the same keys in Tomcat):
 
 ```bash
-code .
+cp .env.example .env
 ```
 
----
+Minimum values:
 
-### 2. Configure MySQL
+- `DB_USERNAME` / `DB_PASSWORD` — your local MySQL login
+- `APP_BASE_URL` — `http://localhost:8080/aryaClgClubSphere` for a named WAR, or `http://localhost:8080` for Docker `ROOT.war`
 
-Start MySQL Server and open MySQL Workbench or another MySQL client.
+`DBUtil` reads environment variables **before** `src/main/resources/application.properties`. Keep real passwords out of Git. The properties file uses `CHANGE_ME` as a placeholder.
 
-Create the project database using the database name configured in the application.
-
-For example:
-
-```sql
-CREATE DATABASE clubsphere_db;
-```
-
-If the project includes a database schema or SQL initialization script, execute that script to create the required tables.
-
-**Important:** The database name, table names, and schema must match the application's actual SQL queries and configuration.
-
----
-
-### 3. Configure Database Credentials
-
-Locate the database configuration used by the application.
-
-Depending on the current implementation, this may be in:
-
-```text
-src/main/resources/application.properties
-```
-
-or in the relevant Java database connection utility.
-
-Configure the database URL, username, and password according to your local MySQL installation.
-
-Example configuration:
-
-```properties
-db.url=jdbc:mysql://localhost:3306/clubsphere_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-db.username=root
-db.password=YOUR_MYSQL_PASSWORD
-```
-
-The property names above are illustrative. Use the exact property names expected by the existing application.
-
-Replace `YOUR_MYSQL_PASSWORD` with your own MySQL password.
-
-**Never commit real database passwords or other private credentials to GitHub.**
-
----
-
-### 4. Build the Project
-
-Open the terminal in the project root directory, where `pom.xml` is located.
-
-Run:
+### 4. Build
 
 ```bash
 mvn clean package
 ```
 
-Maven will resolve dependencies, compile the application, and generate the WAR file if the project is configured for WAR packaging.
-
-The generated artifact is generally located inside:
-
-```text
-target/
-```
-
-The exact WAR filename depends on the project's Maven configuration.
+Artifact: `target/aryaClgClubSphere.war`.
 
 ---
 
 ## Configuration
 
-Before running the project, verify the following settings.
+| Variable | Required | Purpose |
+|---|---|---|
+| `DB_URL` | No | JDBC URL (default local `clubsphere_db`) |
+| `DB_USERNAME` | Yes for a locked-down MySQL | Database user |
+| `DB_PASSWORD` | Yes | Database password |
+| `APP_BASE_URL` | Yes for working QR links | Public origin + context path |
+| `PORT` | Docker / Render | Tomcat HTTP port (default 8080) |
+| `APP_UPLOAD_DIR` | No | Upload directory (default `uploads`) |
 
-| Configuration | Description |
-|---|---|
-| Java Version | JDK 17 |
-| Database Server | MySQL Server |
-| Database Name | Must match the application configuration |
-| Database Username | Your local MySQL username |
-| Database Password | Your local MySQL password |
-| Database URL | Must point to the correct MySQL server and database |
-| Tomcat Version | Apache Tomcat 10.1 |
-| Maven Configuration | Defined in `pom.xml` |
-
-### Important Configuration Notes
-
-- MySQL Server must be running before the application attempts to connect to it.
-- The database must contain the tables required by the application.
-- Database credentials must match your local MySQL configuration.
-- Tomcat must be configured correctly to run the generated WAR file.
-- Java, Maven, and Tomcat versions should remain compatible with the application's dependencies and Servlet API.
-- Do not upload private credentials, passwords, or secret configuration values to GitHub.
+Full comments: [`.env.example`](.env.example). Never commit `.env`.
 
 ---
 
 ## Database Setup
 
-MySQL is used to store the application's persistent data.
+1. Start MySQL.
+2. Run `schema.sql`, then `seed.sql`.
+3. Set `DB_*` to match that instance.
+4. Confirm the app can read the `users` table (startup logs from `DBUtil`).
 
-Depending on the implemented modules, the database may contain information related to:
-
-- User accounts and roles
-- College clubs
-- Club memberships
-- Events
-- Event registrations
-- QR-based registration and check-in records
-- Tasks and notifications
-
-The actual tables and relationships are defined by the project's database schema and application implementation.
-
-### Database Setup Steps
-
-1. Start MySQL Server.
-2. Create the configured database.
-3. Execute the project's SQL schema or initialization script, if provided.
-4. Configure the database connection settings.
-5. Build and start the application.
-6. Verify that the application can connect to the database.
+Seed password for demo accounts: `password123` (see [`docs/demo-accounts.md`](docs/demo-accounts.md)).
 
 ---
 
 ## Running the Project
 
-The project can be built using Maven and deployed to Apache Tomcat.
-
-### Step 1: Build the Application
-
-From the project root directory, run:
+### WAR on Tomcat
 
 ```bash
 mvn clean package
 ```
 
-Confirm that the build completes successfully.
+Copy `target/aryaClgClubSphere.war` into Tomcat `webapps/` and start Tomcat.
 
-### Step 2: Deploy to Tomcat
-
-Locate the generated WAR file inside the `target/` directory.
-
-Deploy the WAR file to the deployment directory of your Tomcat installation, or use your configured deployment method.
-
-### Step 3: Start Tomcat
-
-Start the Apache Tomcat server using the method configured on your system.
-
-Check the Tomcat logs if the application does not start successfully.
-
-### Step 4: Open the Application
-
-Open a browser and navigate to the context path corresponding to the deployed application.
-
-For example:
+Open:
 
 ```text
 http://localhost:8080/aryaClgClubSphere
 ```
 
-The actual URL depends on the deployed WAR filename and Tomcat configuration.
+### Fast path: Docker Compose
 
-If the application uses a different context path, open that path instead.
+See [Deployment with Docker](#deployment-with-docker). Compose serves the app at **http://localhost:8080/** (root context).
+
+---
+
+## Running Tests
+
+Unit tests do not need MySQL:
+
+```bash
+mvn test
+```
+
+Single class:
+
+```bash
+mvn test -Dtest=PasswordUtilTest
+mvn test -Dtest=QRCodeUtilTest
+```
+
+---
+
+## Deployment with Docker
+
+`Dockerfile` builds the WAR with Maven and copies it into Tomcat 10.1 as `ROOT.war`. The entrypoint binds the HTTP connector to `$PORT` (Render-compatible).
+
+### Full demo (app + MySQL)
+
+```bash
+docker compose up --build
+```
+
+Then open **http://localhost:8080** and use [`docs/demo-accounts.md`](docs/demo-accounts.md). Compose maps MySQL to host port **3307**.
+
+### Image only (external database)
+
+```bash
+docker build -t clubsphere .
+
+docker run -p 8080:8080 \
+  -e DB_URL="jdbc:mysql://HOST:3306/clubsphere_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" \
+  -e DB_USERNAME=USER \
+  -e DB_PASSWORD=PASSWORD \
+  -e APP_BASE_URL="http://localhost:8080" \
+  clubsphere
+```
+
+On Render, set the same `DB_*` variables plus `APP_BASE_URL` to the public `https://…onrender.com` origin.
+
+---
+
+## Documentation
+
+| Document | Location |
+|---|---|
+| Documentation index | [`docs/README.md`](docs/README.md) |
+| Demo logins | [`docs/demo-accounts.md`](docs/demo-accounts.md) |
+| Demo video | [`docs/demo-video.md`](docs/demo-video.md) |
+| Architecture | [`docs/architecture.md`](docs/architecture.md) |
+| Authentication module | [`docs/authentication-and-user-management.md`](docs/authentication-and-user-management.md) |
+| Club Management | [`docs/club-management.md`](docs/club-management.md) |
+| Events & QR | [`docs/event-management-and-qr.md`](docs/event-management-and-qr.md) |
+| Dashboards, tasks, notifications | [`docs/dashboards-tasks-notifications.md`](docs/dashboards-tasks-notifications.md) |
+| Team integration notes | [`docs/team-integration-notes.md`](docs/team-integration-notes.md) |
+| IEEE SRS | [`docs/SRS/`](docs/SRS/) |
+| UML diagrams | [`docs/UML/`](docs/UML/) |
+| Team and individual reports | [`docs/reports/`](docs/reports/) |
+| Research paper | [`docs/research-paper/`](docs/research-paper/) |
 
 ---
 
 ## GitHub Workflow
 
-GitHub is used for source code management and collaboration among the four team members.
+Repository: [Avantikamishra862/Arya_Clubsphere](https://github.com/Avantikamishra862/Arya_Clubsphere)
 
-Repository:
-
-**[Arya College ClubSphere – Event Management Repository](https://github.com/Avantikamishra862/Event_Management)**
-
-### Branches
-
-The project repository uses the following branches for development and collaboration:
-
-| Branch | Purpose |
-|---|---|
-| `main` | Main project branch |
-| `backend` | Backend-related development |
-| `frontend` | Frontend-related development |
-| `database` | Database-related development |
-| `testing` | Testing-related work |
-
-The team should coordinate changes before merging shared files or integrating module updates.
-
-### Clone the Repository
+Keep `main` deployable. Use feature branches (`feature/…`, `docs/…`, `fix/…`) and pull requests.
 
 ```bash
-git clone https://github.com/Avantikamishra862/Event_Management.git
+git clone https://github.com/Avantikamishra862/Arya_Clubsphere.git
+git checkout main
+git pull origin main
+git switch -c feature/your-change
 ```
 
-### Check the Current Branch
-
-```bash
-git branch
-```
-
-### Switch to a Branch
-
-For example:
-
-```bash
-git switch backend
-```
-
-Replace `backend` with the branch you need.
-
-### Pull the Latest Changes
-
-```bash
-git pull
-```
-
-### Stage Changes
-
-```bash
-git add .
-```
-
-### Commit Changes
-
-```bash
-git commit -m "Describe your changes"
-```
-
-### Push Changes
-
-```bash
-git push
-```
-
-### Collaboration Guidelines
-
-1. Work on the branch agreed upon by the team.
-2. Pull the latest changes before beginning new work.
-3. Avoid editing the same files simultaneously without coordination.
-4. Use clear and meaningful commit messages.
-5. Test changes before pushing them.
-6. Coordinate integration of the four modules.
-7. Never commit database passwords or other secrets.
-8. Review changes before merging them into the main project branch.
+Do not commit `.env`, passwords, or `application-local.properties`. When you add a setting, add it to `.env.example` too. Coordinate edits to `pom.xml`, `schema.sql`, `AuthenticationFilter`, and shared JSP chrome.
 
 ---
 
 ## Security
 
-Security is important for a system that manages users, clubs, events, and registrations.
-
-The following practices should be followed during development:
-
-- Validate user input before processing it.
-- Restrict access to administrative and club management operations according to user roles.
-- Use secure password-handling practices.
-- Use parameterized SQL queries or `PreparedStatement` to reduce SQL injection risks.
-- Avoid exposing database credentials in source code or public repositories.
-- Validate event registration requests on the server side.
-- Verify registration records before confirming event check-in.
-- Handle errors without exposing sensitive internal information.
-
-The actual security protections depend on the application's implemented authentication and authorization logic.
-
----
-
-## Future Enhancements
-
-The following features may be considered for future development:
-
-- Improved role-based dashboards
-- Enhanced club membership management
-- Advanced event scheduling and management
-- QR-based event check-in improvements
-- Real-time notifications
-- Email notifications for important events
-- Event attendance reports
-- Club activity reports
-- Improved mobile responsiveness
-- Additional validation and automated tests
-- Deployment to a hosted environment
-
-These are potential enhancements and should not be considered implemented features unless they are present in the current codebase.
+- BCrypt password hashing
+- Session fixation mitigation on login
+- RBAC in `AuthenticationFilter`
+- Parameterized SQL in DAOs
+- Open-redirect checks on the login `redirect` parameter
+- Env-based secrets; placeholder only in `application.properties`
 
 ---
 
 ## Team
-
-Arya College ClubSphere is being developed collaboratively by the following team members.
 
 | S. No. | Team Member | Enrollment Number | Responsibility |
 |---|---|---|---|
@@ -562,38 +354,20 @@ Arya College ClubSphere is being developed collaboratively by the following team
 | 3 | Akansha Sharma | 24EARCS012 | Event Management & QR Code Registration |
 | 4 | Aditi Maheshwari | 24EARCS007 | Dashboards, Tasks & Notifications |
 
-### Team Collaboration
+**PBL Team ID:** `PBL2627-CSE-A-024`
 
-Each team member works on an assigned module. The modules are integrated to create a unified college club and event management application.
-
-The team uses GitHub for version control, code sharing, and collaborative development.
+Individual reports: [`docs/reports/`](docs/reports/).
 
 ---
 
 ## Contributing
 
-Contributions from team members should follow the project's agreed development workflow.
-
-1. Check the current branch before making changes.
-2. Pull the latest code before starting development.
-3. Work on the appropriate branch or assigned module.
-4. Keep changes focused and easy to review.
-5. Test the affected functionality before committing.
-6. Use meaningful commit messages.
-7. Coordinate changes to shared files with other team members.
-8. Review and resolve merge conflicts carefully.
-9. Never commit passwords, private credentials, or other sensitive configuration values.
-10. Verify that the integrated application continues to build and run correctly.
-
----
-
-## Project Status
-
-Arya College ClubSphere is a college project focused on simplifying the management of clubs, events, memberships, and related campus activities.
-
-The application is being developed module by module, with each team member contributing to an assigned area of functionality.
-
-The final functionality and deployment status depend on the implementation and integration of the project's modules.
+1. Do not commit directly to `main`.
+2. Pull latest `main`, then branch from it.
+3. Keep commits small and named after the module (`feat(events): …`, `docs(srs): …`).
+4. Run `mvn test` and smoke-test the affected role.
+5. Never commit secrets. Update `.env.example` when adding variables.
+6. Talk to the team before changing shared files listed in [`docs/team-integration-notes.md`](docs/team-integration-notes.md).
 
 ---
 

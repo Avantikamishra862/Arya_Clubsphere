@@ -1,119 +1,156 @@
-# Authentication & User Management Module Documentation
+# Authentication & User Management
 
 **Application:** Arya College ClubSphere  
 **Module:** Authentication & User Management  
-**Branch:** `feature/auth-user-management`  
-**Developer:** Avantika Mishra  
+**Developer:** Avantika Mishra (24EARCS032)  
+**Branch:** `feature/auth-user-management`
 
 ---
 
-## 1. Overview & Responsibilities
+## Overview
 
-The **Authentication & User Management** module is the foundational security layer for Arya College ClubSphere. It governs identity verification, credential security, role-based authorization, session lifecycles, and user directory administration across all 26 campus clubs.
+This module is the identity layer for ClubSphere. It handles sign-in, sign-out, BCrypt passwords, HTTP sessions, role-based URL guards, and the administrative user directory.
 
-### Key Responsibilities
-- **Authentication:** Secure sign-in (`/login`) and sign-out (`/logout`) workflows with session management.
-- **Authorization & RBAC:** Centralized filtering via `AuthenticationFilter` enforcing role boundaries across Admin, Club Head, Club Member, and Student areas.
-- **User Lifecycle Management:** Creation of user accounts, role updates, and active/inactive status toggling from the administrative directory (`/admin/users`).
-- **Credential Protection:** BCrypt hashing (cost factor 10) with automatic, safe hashing upgrade mechanisms for legacy seed credentials.
-- **Deep Linking & User Experience:** Preservation of user-intended destinations through safe internal redirect handling, password visibility controls, and interactive credential helpers.
+There is no JWT, no Spring Security, and no public Register page. Accounts are created by an administrator. The four roles are `ADMIN`, `CLUB_HEAD`, `CLUB_MEMBER`, and `STUDENT`.
+
+### Responsibilities
+
+- Authenticate with username **or** email at `POST /login`.
+- Invalidate the old session before creating a new one (session-fixation mitigation).
+- Store `currentUser` and `unreadCount` on the session.
+- Guard role URL prefixes in `AuthenticationFilter`.
+- Let admins create users, change roles, and toggle status at `/admin/users`.
+- Upgrade a legacy/non-standard password hash to BCrypt after a successful login.
 
 ---
 
-## 2. Architecture & Components
+## Architecture
 
 ```
-                +---------------------------------------+
-                |           Web Browser / Client        |
-                +---------------------------------------+
-                                    |
-                                    v
-                +---------------------------------------+
-                |          AuthenticationFilter         |
-                |   - Public Asset & Endpoint Whitelist |
-                |   - RBAC Role-Based Route Guards      |
-                |   - Deep-Link Redirect Preservation   |
-                +---------------------------------------+
-                                    |
-          +-------------------------+-------------------------+
-          |                                                   |
-          v                                                   v
-+-------------------+                               +--------------------+
-|   LoginServlet    |                               |    AdminServlet    |
-|   LogoutServlet   |                               | (/user/create,     |
-|                   |                               |  /user/change-role,|
-+-------------------+                               |  /user/toggle-status)
-          |                                         +--------------------+
-          +-------------------------+-------------------------+
-                                    |
-                                    v
-                        +----------------------+
-                        |     UserService      |
-                        +----------------------+
-                        | - login()            |
-                        | - registerUser()     |
-                        | - changeRole()       |
-                        | - changeStatus()     |
-                        | - changePassword()   |
-                        +----------------------+
-                                    |
-                                    v
-                        +----------------------+
-                        |       UserDAO        |
-                        | (JDBC PreparedStmts) |
-                        +----------------------+
-                                    |
-                                    v
-                        +----------------------+
-                        |   MySQL Database     |
-                        |   (users table)      |
-                        +----------------------+
+Browser
+   │
+   ▼
+AuthenticationFilter   (/*)
+   │  public whitelist OR session + RBAC
+   ▼
+LoginServlet / LogoutServlet / AdminServlet (/user/*)
+   │
+   ▼
+UserService
+   │
+   ▼
+UserDAO  (PreparedStatement + HikariCP)
+   │
+   ▼
+MySQL  users
 ```
-
-### Component Breakdown
-1. **Controllers & Servlets:**
-   - `com.clubsphere.controller.LoginServlet`: Authenticates credentials, manages session fixation mitigation, records audit logs, and redirects users to target destinations or dashboards.
-   - `com.clubsphere.controller.LogoutServlet`: Logs logout events, invalidates active HTTP sessions, and redirects to login with confirmation feedback.
-   - `com.clubsphere.controller.AdminServlet`: Handles administrative endpoints `/user/create`, `/user/change-role`, and `/user/toggle-status`.
-2. **Security Filter:**
-   - `com.clubsphere.filter.AuthenticationFilter`: Intercepts all requests (`/*`), verifies session state, enforces RBAC policies per URI prefix, and attaches encoded return URLs to redirect unauthenticated users cleanly.
-3. **Business Logic & Persistence:**
-   - `com.clubsphere.service.UserService`: Orchestrates authentication, credential upgrades, registration constraints, and status updates.
-   - `com.clubsphere.dao.UserDAO`: Executes parameterized SQL queries with HikariCP connection pooling, providing robust CRUD operations and uniqueness checks.
-4. **Utilities & Models:**
-   - `com.clubsphere.util.PasswordUtil`: BCrypt hashing and verification utility.
-   - `com.clubsphere.model.User`: Encapsulates user identity, contact information, role, and active status.
-5. **Views:**
-   - `src/main/webapp/login.jsp`: Modern sign-in form with accessibility associations, show/hide password visibility toggle, redirect field preservation, and 1-click credential autofill buttons.
-   - `src/main/webapp/WEB-INF/views/admin/users.jsp`: Administrative user directory table with role filtering, role dropdown updater, status toggle actions, and validation-ready registration modal.
 
 ---
 
-## 3. Role-Based Access Control (RBAC) Matrix
+## Files
 
-| Endpoint / Area | Public (Unauthenticated) | STUDENT | CLUB_MEMBER | CLUB_HEAD | ADMIN |
+| File | Purpose |
+|---|---|
+| `controller/LoginServlet.java` | GET form, POST authenticate, dashboard redirect |
+| `controller/LogoutServlet.java` | Audit log + session invalidate |
+| `controller/AdminServlet.java` | `/user/create`, `/user/change-role`, `/user/toggle-status` |
+| `filter/AuthenticationFilter.java` | Public whitelist and role prefixes |
+| `service/UserService.java` | Login, register, role/status/password |
+| `dao/UserDAO.java` | Parameterized SQL |
+| `util/PasswordUtil.java` | BCrypt hash / verify (cost 10) |
+| `model/User.java` | Identity, role, status, managed-club fields |
+| `login.jsp` | Sign-in form, password toggle, demo autofill |
+| `WEB-INF/views/admin/users.jsp` | Admin user directory |
+| `src/test/java/com/clubsphere/util/PasswordUtilTest.java` | Hash / verify / null tests |
+
+---
+
+## URL contract
+
+| Method | Path | Who | Action |
+|---|---|---|---|
+| GET | `/login` | Public | Show form, or redirect if already signed in |
+| POST | `/login` | Public | Authenticate; optional `redirect` |
+| GET | `/logout` | Public | Invalidate session |
+| GET | `/admin/users` | ADMIN | User directory |
+| POST | `/admin/user/create` | ADMIN | Create account |
+| POST | `/admin/user/change-role` | ADMIN | Change role |
+| POST | `/admin/user/toggle-status` | ADMIN | ACTIVE / INACTIVE (cannot deactivate self) |
+
+Login form fields: `username` (username or email), `password`, optional `redirect`.
+
+After login, `LoginServlet.redirectToDashboard` sends:
+
+| Role | Destination |
+|---|---|
+| ADMIN | `/admin/dashboard` |
+| CLUB_HEAD | `/club-head/dashboard` |
+| CLUB_MEMBER | `/club-member/dashboard` |
+| STUDENT (default) | `/student/dashboard` |
+
+If the user is a club head, login also loads `managedClubId` / `managedClubName` from `clubs.head_user_id`.
+
+---
+
+## RBAC matrix
+
+| Area | Unauthenticated | STUDENT | CLUB_MEMBER | CLUB_HEAD | ADMIN |
 |---|:---:|:---:|:---:|:---:|:---:|
-| `/`, `/index.jsp` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/login`, `/logout` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/clubs`, `/events` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/student/*` | ❌ (Redirects) | ✅ | ✅ | ✅ | ✅ |
-| `/club-member/*` | ❌ (Redirects) | ❌ (403) | ✅ | ✅ | ✅ |
-| `/club-head/*` | ❌ (Redirects) | ❌ (403) | ❌ (403) | ✅ | ✅ |
-| `/admin/*` | ❌ (Redirects) | ❌ (403) | ❌ (403) | ❌ (403) | ✅ |
+| `/`, `/login`, `/logout` | yes | yes | yes | yes | yes |
+| `/clubs`, `/events`, `/qr/*` | yes | yes | yes | yes | yes |
+| `/student/*`, `/notifications/*` | login redirect | yes | yes | yes | yes |
+| `/club-member/*` | login redirect | 403 | yes | yes | yes |
+| `/club-head/*` | login redirect | 403 | 403 | yes | yes |
+| `/admin/*` | login redirect | 403 | 403 | 403 | yes |
+
+Hiding a sidebar link is only a convenience. The filter is the security boundary.
 
 ---
 
-## 4. Security Enhancements & Best Practices
+## Security behaviour
 
-1. **Session Fixation Prevention:**  
-   During login in `LoginServlet`, existing sessions are explicitly invalidated before instantiating a fresh authenticated session (`req.getSession(true)`), preventing session fixation exploits.
-2. **Open Redirect Defense:**  
-   The `redirect` parameter is validated to ensure it only allows safe, internal paths starting with the application's context path or relative `/`, strictly disallowing absolute protocol schemes (`http://`, `https://`, `//`) and `javascript:` URIs.
-3. **Safe BCrypt Hash Upgrade:**  
-   In `UserService.login`, non-standard and legacy hashes are upgraded to standard BCrypt with exception safety, preventing `IllegalArgumentException` from halting login execution.
-4. **Self-Lockout Guard:**  
-   Administrators are prevented from deactivating their own currently logged-in account in `/admin/user/toggle-status`.
-5. **Registration Uniqueness Constraints:**  
-   User creation checks for both unique username and email before attempting database insertion, providing clean user-facing error feedback rather than uncaught database constraint violations.
-6. **Form Accessibility & Usability:**  
-   Explicit `for`/`id` bindings on all form inputs, password visibility toggle for improved usability, and instant credential autofill for developer and evaluation testing.
+1. **Session fixation:** `LoginServlet` invalidates any existing session, then `req.getSession(true)`.
+2. **Open redirect:** `redirect` must start with the context path or a single `/`, and must not contain `://` or `javascript:`.
+3. **Hash upgrade:** after a successful verify, a non-standard hash is rewritten with `PasswordUtil.hashPassword`.
+4. **Self-lockout:** an admin cannot deactivate the currently logged-in account.
+5. **Uniqueness:** `registerUser` rejects duplicate username or email before insert.
+6. **SQL:** all user queries use `PreparedStatement`.
+
+---
+
+## Database
+
+```
+users
+  id, username (unique), email (unique), password_hash,
+  full_name, role ENUM(ADMIN, CLUB_HEAD, CLUB_MEMBER, STUDENT),
+  student_id, phone, department, year_of_study, avatar_url,
+  status ENUM(ACTIVE, INACTIVE, SUSPENDED), created_at, updated_at
+```
+
+Login writes a row to `activity_logs` (`LOGIN`). Logout writes `LOGOUT`.
+
+---
+
+## Environment
+
+Uses the shared DB settings in [`.env.example`](../.env.example). No extra auth secrets (no JWT signing key).
+
+---
+
+## Tests
+
+```bash
+mvn test
+```
+
+`PasswordUtilTest` covers hash/verify, salt diversity, and null inputs. There are no servlet or filter tests.
+
+---
+
+## Limitations
+
+- No public self-registration (`/register` is listed on the filter whitelist but has no servlet).
+- No password-reset or e-mail verification.
+- Session cookie `secure` is `false` in `web.xml`.
+- Demo seed password is documented in [`demo-accounts.md`](demo-accounts.md) and must not be used in production.
